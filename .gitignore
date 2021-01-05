@@ -1,0 +1,8 @@
+venv
+.vscode
+mock_data/
+save_test/
+training_args/
+wandb/
+**/__pycache__/
+**/*cache
