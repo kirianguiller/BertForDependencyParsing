@@ -68,3 +68,7 @@ python scripts/train_model.py
 ```
 
 The model will be save in the data folder your provided, in the subfolder models/$model_name
+
+
+### Follow training metrics
+On wandb, you can follow the training evolution (exemple here : https://wandb.ai/kirian/huggingface?workspace=user-). You can customize plots and charts to suit your needs
