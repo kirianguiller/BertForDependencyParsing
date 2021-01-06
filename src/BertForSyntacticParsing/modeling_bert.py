@@ -832,15 +832,14 @@ class BertForSyntacticParsing(BertPreTrainedModel):
         self.maxlen = config.max_position_embeddings
 
         criterions = {}
-        criterions["head"] = nn.CrossEntropyLoss(ignore_index=config.max_position_embeddings - 1)
+        criterions["head"] = nn.CrossEntropyLoss(
+            ignore_index=config.max_position_embeddings-1)
         criterions["deprel"] = nn.CrossEntropyLoss(ignore_index=-1)
         criterions["pos"] = nn.CrossEntropyLoss(ignore_index=-1)
         self.criterions = criterions
 
         self.bert = BertModel(config, add_pooling_layer=False)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
-
-
 
         mlp_input = config.mlp_input
         mlp_input = (
@@ -852,18 +851,22 @@ class BertForSyntacticParsing(BertPreTrainedModel):
         mlp_layers = config.mlp_layers
         mlp_pos_layers = config.mlp_pos_layers
         # Arc MLPs
-        self.arc_mlp_h = MLP(mlp_input, mlp_arc_hidden, mlp_layers, "ReLU", mlp_dropout)
-        self.arc_mlp_d = MLP(mlp_input, mlp_arc_hidden, mlp_layers, "ReLU", mlp_dropout)
+        self.arc_mlp_h = MLP(mlp_input, mlp_arc_hidden,
+                             mlp_layers, "ReLU", mlp_dropout)
+        self.arc_mlp_d = MLP(mlp_input, mlp_arc_hidden,
+                             mlp_layers, "ReLU", mlp_dropout)
         # Label MLPs
-        self.lab_mlp_h = MLP(mlp_input, mlp_lab_hidden, mlp_layers, "ReLU", mlp_dropout)
-        self.lab_mlp_d = MLP(mlp_input, mlp_lab_hidden, mlp_layers, "ReLU", mlp_dropout)
+        self.lab_mlp_h = MLP(mlp_input, mlp_lab_hidden,
+                             mlp_layers, "ReLU", mlp_dropout)
+        self.lab_mlp_d = MLP(mlp_input, mlp_lab_hidden,
+                             mlp_layers, "ReLU", mlp_dropout)
         # Label POS
-        self.pos_mlp = MLP(mlp_input, self.num_uposs, mlp_pos_layers, "ReLU", mlp_dropout)
+        self.pos_mlp = MLP(mlp_input, self.num_uposs,
+                           mlp_pos_layers, "ReLU", mlp_dropout)
 
         # BiAffine layers
         self.arc_biaffine = BiAffine(mlp_arc_hidden, 1)
         self.lab_biaffine = BiAffine(mlp_lab_hidden, self.num_deprels)
-
 
         self.init_weights()
 
@@ -902,7 +905,7 @@ class BertForSyntacticParsing(BertPreTrainedModel):
         sequence_output = outputs[0]
 
         sequence_output = self.dropout(sequence_output)
-        
+
         # logits = self.classifier(sequence_output)
 
         arc_h = self.arc_mlp_h(sequence_output)
@@ -914,32 +917,26 @@ class BertForSyntacticParsing(BertPreTrainedModel):
         heads_pred = self.arc_biaffine(arc_h, arc_d)
         deprels_main_pred = self.lab_biaffine(lab_h, lab_d)
 
-        # print("KK labels", labels)
-        # print("KK labels.size()", labels.size())
         poss_true = labels[:, 2, :]
         heads_true = labels[:, 3, :]
         deprels_main_true = labels[:, 4, :]
 
-        # print("KK sequence_output", sequence_output)
-        # input("KK input")
         loss = None
         if labels is not None:
 
             loss_batch = 0.0
 
-            loss_head_batch = compute_loss_head(heads_pred, heads_true, self.criterions['head'])
-            # loss_head_epoch += loss_head_batch.item()
+            loss_head_batch = compute_loss_head(
+                heads_pred, heads_true, self.criterions['head'])
             loss_batch += loss_head_batch
-            
-            loss_deprels_main_batch = compute_loss_deprel(deprels_main_pred, deprels_main_true, heads_true.clone(), self.criterions['deprel'])
-            # loss_deprels_main_epoch += loss_deprels_main_batch.item()
+
+            loss_deprels_main_batch = compute_loss_deprel(
+                deprels_main_pred, deprels_main_true, heads_true.clone(), self.criterions['deprel'])
             loss_batch += loss_deprels_main_batch
-            
-            loss_poss_batch = compute_loss_poss(poss_pred, poss_true, self.criterions['pos'])
-            # loss_poss_epoch += loss_poss_batch.item()
+
+            loss_poss_batch = compute_loss_poss(
+                poss_pred, poss_true, self.criterions['pos'])
             loss_batch += loss_poss_batch
-
-
 
             # loss_fct = CrossEntropyLoss()
             # # Only keep active parts of the loss
@@ -954,11 +951,13 @@ class BertForSyntacticParsing(BertPreTrainedModel):
             # else:
             #     loss = loss_fct(
             #         logits.view(-1, self.num_labels), labels.view(-1))
-        # print("KK loss_batch", loss_batch)
-        # input("KK input")
         if not return_dict:
-            output = (sequence_output,) + outputs[2:]
-            return ((loss_batch,) + output) if loss_batch is not None else output
+            # output = (sequence_output,) + outputs[2:]
+            output = (poss_pred, heads_pred, deprels_main_pred)
+            # print("KK outputs.hidden", outputs.hidden_states)
+            return ((loss_batch,) + (output)) if loss_batch is not None else output
+
+        raise BaseException("TODO : has to implement TokenClassifierOutput")
 
         return TokenClassifierOutput(
             loss=loss,
@@ -969,15 +968,19 @@ class BertForSyntacticParsing(BertPreTrainedModel):
 
 
 def compute_loss_head(heads_pred, heads_true, criterion):
+    # print("KK heads_true", heads_true)
     return criterion(heads_pred, heads_true)
+
 
 def compute_loss_deprel(deprels_pred, deprels_true, heads_true, criterion):
     deprels_pred = deprel_aligner_with_head(deprels_pred, heads_true)
 
     return criterion(deprels_pred, deprels_true)
 
+
 def compute_loss_poss(poss_pred, poss_true, criterion):
-    return criterion(poss_pred.permute(0,2,1), poss_true)
+    return criterion(poss_pred.permute(0, 2, 1), poss_true)
+
 
 def deprel_aligner_with_head(deprels_pred, heads_true):
     heads_true = heads_true.unsqueeze(1).unsqueeze(2)

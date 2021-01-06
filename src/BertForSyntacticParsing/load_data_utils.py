@@ -1,8 +1,11 @@
+import os
 from typing import Dict, List
+
 import conllu
+
 import torch
-from torch.utils.data import Dataset
 from torch import tensor, cuda
+from torch.utils.data import Dataset
 
 
 # Whether to train on a gpu
@@ -66,8 +69,7 @@ def dep_parse_data_collator(features: List[torch.Tensor]) -> Dict[str, torch.Ten
 
 
 class ConlluDataset(Dataset):
-    # def __init__(self, path_file, tokenizer, bert_language="english", args.maxlen = 256, list_deprel_main=None, list_deprel_aux=None, separate_deprel=True, exclude_punc=False):
-    def __init__(self, path_file, tokenizer, args: Args) -> None:
+    def __init__(self, path_folder, tokenizer, args: Args) -> None:
         self.tokenizer = tokenizer
         self.args = args
 
@@ -79,22 +81,13 @@ class ConlluDataset(Dataset):
 
         # Load all the sequences from the file
         # TODO : make a generator
-        with open(path_file, 'r') as infile:
-            self.sequences = conllu.parse(infile.read())
-
-#         infile = open(path_file, 'r')
-#         self.sequences = conllu.parse_incr(infile)
-
-        # self.primary_relation_only = primary_relation_only
-
-        # if not self.args.list_deprel_main:
-            # self.list_deprel_main, self.list_deprel_aux = create_deprel_lists(path_file)
-
-        # print("list_deprel_main", self.list_deprel_main)
-        # print("list_deprel_aux", self.list_deprel_aux)
-
-        # Make the Dependency Relation to Index dictionary if not given in the init
-
+        self.sequences = []
+        for conllu_name in os.listdir(path_folder):
+            path_conllu = os.path.join(path_folder, conllu_name)
+            with open(path_conllu, 'r') as infile:
+                # TODO : add a checker for conllu well formating
+                self.sequences += conllu.parse(infile.read())
+        
         self.drm2i, self.i2drm = self._mount_dr2i(self.args.list_deprel_main)
 
         self.pos2i, self.i2pos = self._mount_pos2i(self.args.list_pos)

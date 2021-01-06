@@ -5,9 +5,8 @@ from transformers.data import data_collator
 # os.environ['WANDB_MODE'] = 'dryrun' # deactivate wandb syncing while preserving offline saving
 # os.environ['WANDB_DISABLED'] = "True" # deactivating all wandb activities with huggingface
 # print("KK GETENV", os.getenv('WANDB_MODE'))
-from src.BertForSyntacticParsing import BertForSyntacticParsing, BertConfig
+from src.BertForSyntacticParsing import BertForSyntacticParsing, BertConfig, ConlluDataset, Args
 from transformers import Trainer, TrainingArguments, AutoTokenizer
-from load_data_utils import ConlluDataset, Args
 
 import json
 import torch
